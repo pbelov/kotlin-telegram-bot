@@ -4,11 +4,13 @@ import com.github.kotlintelegrambot.Bot
 import com.github.kotlintelegrambot.bot
 import com.github.kotlintelegrambot.dispatch
 import com.github.kotlintelegrambot.dispatcher.command
+import com.github.kotlintelegrambot.dispatcher.message
 import com.github.kotlintelegrambot.dispatcher.text
 import com.github.kotlintelegrambot.entities.ChatId
 import com.github.kotlintelegrambot.entities.ParseMode
+import com.github.kotlintelegrambot.entities.TelegramFile
 import java.io.File
-import java.util.Calendar
+import java.util.*
 import java.util.Calendar.*
 import kotlin.collections.HashMap
 import kotlin.random.Random
@@ -25,10 +27,11 @@ fun main() {
         dispatch {
             val cmdHandler = CmdHandler()
             text {
-                val today = todayMap.getOrDefault(message.chat.id, null.toString())
-                if (today != prevDayMap[message.chat.id]) {
-                    prevDayMap[message.chat.id] = getDateAsString()
-                    todayMap[message.chat.id] = prevDayMap.getValue(message.chat.id)
+                val today = getDateAsString()
+                val prevDay = prevDayMap[message.chat.id]
+                todayMap[message.chat.id] = today
+                if (today != prevDay) {
+                    prevDayMap[message.chat.id] = todayMap.getValue(message.chat.id)
 
                     when (getTime()) {
                         in 6..11 -> {
@@ -76,19 +79,30 @@ fun main() {
                 cmdHandler.cmdCNY(bot, update)
             }
 
+            command("usd") {
+                cmdHandler.cmdUSD(bot, update)
+            }
+
+            command("eur") {
+                cmdHandler.cmdEUR(bot, update)
+            }
+
             command("ping") {
                 bot.sendMessage(chatId = ChatId.fromId(message.chat.id), replyToMessageId = update.message!!.messageId, text = "pong")
             }
 
             command("day") {
-                // TODO пока так, страдайте
-                bot.sendMessage(chatId = ChatId.fromId(message.chat.id), text = "https://www.calend.ru/img/export/informer.png")
+                bot.sendPhoto(chatId = ChatId.fromId(message.chat.id), TelegramFile.ByUrl("https://www.calend.ru/img/export/informer.png?" + getDateAsString()))
+            }
+
+            command("cat") {
+                bot.sendPhoto(chatId = ChatId.fromId(message.chat.id), TelegramFile.ByUrl("https://thiscatdoesnotexist.com/?" + System.currentTimeMillis()))
             }
 
             command("me") {
                 bot.deleteMessage(chatId = ChatId.fromId(message.chat.id), messageId = update.message!!.messageId)
                 bot.sendMessage(chatId = ChatId.fromId(message.chat.id), text = ((message.from?.firstName ?: "") + " " + (message.from?.lastName
-                    ?: "") + " " + args.joinToString()), parseMode = ParseMode.MARKDOWN_V2)
+                    ?: "") + " " + args.joinToString(separator = " ")), parseMode = ParseMode.MARKDOWN_V2)
             }
 
             text("бот, утро?") {
@@ -142,6 +156,15 @@ fun main() {
                     bot.sendMessage(chatId = ChatId.fromId(message.chat.id), replyToMessageId = update.message!!.messageId, text = "нт.")
                 }
             }
+
+            text("42") {
+                bot.sendMessage(chatId = ChatId.fromId(message.chat.id), replyToMessageId = update.message!!.messageId, text = "don't panic!")
+            }
+
+            message {
+                println("message: " + (message.photo?.get(0)?.fileId))
+//                bot.sendPhoto(chatId = ChatId.fromId(message.chat.id), TelegramFile.ByUrl(message.photo?.get(0)?.fileId!!))
+            }
         }
     }
 
@@ -178,8 +201,12 @@ private fun getWeekDay(): Int {
 
 private fun getDateAsString() : String {
     val c = Calendar.getInstance()
+    var day = c.get(Calendar.DAY_OF_MONTH).toString()
+    if (day.length == 1) day = " $day"
+    var month = c.get(Calendar.DAY_OF_MONTH).toString()
+    if (month.length == 1) month = " $month"
 
-    return c.toString()
+    return c.get(Calendar.YEAR).toString() + month + day
 }
 
 fun handleText(bot: Bot, id: Long, text: String) {
